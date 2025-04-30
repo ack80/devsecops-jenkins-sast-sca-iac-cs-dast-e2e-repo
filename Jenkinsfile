@@ -1,17 +1,20 @@
 pipeline {
     agent any
+
     tools {
-        maven 'Maven 3.8.7' // Usa el nombre correcto según la configuración en Jenkins
+        maven 'Maven 3.8.7' // Asegúrate que este nombre coincida con el definido en "Global Tool Configuration"
     }
 
     stages {
         stage('Compile and Run Sonar Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
-                    bat """mvn -Dmaven.test.failure.ignore verify sonar:sonar ^
-                        -Dsonar.login=${env.SONAR_TOKEN} ^
-                        -Dsonar.projectKey=easybuggy ^
-                        -Dsonar.host.url=http://localhost:9000/"""
+                    bat '''
+                        mvn -Dmaven.test.failure.ignore verify sonar:sonar ^
+                            -Dsonar.login=%SONAR_TOKEN% ^
+                            -Dsonar.projectKey=easybuggy ^
+                            -Dsonar.host.url=http://localhost:9000/
+                    '''
                 }
             }
         }
@@ -31,7 +34,10 @@ pipeline {
                 withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
                     script {
                         try {
-                            bat("C:\\snyk\\snyk-win.exe container test asecurityguru/testeb")
+                            bat '''
+                                set SNYK_TOKEN=%SNYK_TOKEN%
+                                C:\\snyk\\snyk-win.exe container test asecurityguru/testeb
+                            '''
                         } catch (err) {
                             echo err.getMessage()
                         }
@@ -43,20 +49,25 @@ pipeline {
         stage('Run Snyk SCA') {
             steps {
                 withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
-                    bat("mvn snyk:test -fn")
+                    bat '''
+                        set SNYK_TOKEN=%SNYK_TOKEN%
+                        mvn snyk:test -fn
+                    '''
                 }
             }
         }
         
         stage('Run DAST Using ZAP') {
             steps {
-                bat("C:\\zap\\ZAP_2.12.0_Crossplatform\\ZAP_2.12.0\\zap.bat -port 9393 -cmd -quickurl https://www.example.com -quickprogress -quickout C:\\zap\\Output.html")
+                bat '''
+                    C:\\zap\\ZAP_2.12.0_Crossplatform\\ZAP_2.12.0\\zap.bat -port 9393 -cmd -quickurl https://www.example.com -quickprogress -quickout C:\\zap\\Output.html
+                '''
             }
         }
 
         stage('Checkov') {
             steps {
-                bat("checkov -s -f main.tf")
+                bat "checkov -s -f main.tf"
             }
         }
     }
