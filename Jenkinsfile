@@ -3,21 +3,32 @@ pipeline {
 
     tools {
         maven 'Maven 3.8.7' // Asegúrate que este nombre coincida con el definido en "Global Tool Configuration"
-    }
+    } 
 
-    stages {
         stage('Compile and Run Sonar Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
-                    bat '''
+                    script {
+                    echo "Ejecutando análisis de SonarQube..."
+                    def status = bat(
+                    script: '''
+                        echo TOKEN: %SONAR_TOKEN%
                         mvn -Dmaven.test.failure.ignore verify sonar:sonar ^
                             -Dsonar.login=%SONAR_TOKEN% ^
                             -Dsonar.projectKey=easybuggy ^
                             -Dsonar.host.url=http://localhost:9000/
-                    '''
+                    ''',
+                    returnStatus: true
+                    )
+                    if (status != 0) {
+                        error "SonarQube analysis failed with exit code ${status}"
+                    }
                 }
             }
         }
+    }
+
+
         
         stage('Build') {
             steps {
